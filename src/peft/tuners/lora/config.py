@@ -85,6 +85,14 @@ class LoraConfig(PeftConfig):
             ),
         },
     )
+    fa: bool = field(
+        default=False,
+        metadata={
+            "help": (
+                "Whether to use LoRA-FA, default = False"
+            ),
+        },
+    )
     layers_to_transform: Optional[Union[List[int], int]] = field(
         default=None,
         metadata={

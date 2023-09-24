@@ -245,6 +245,13 @@ class LoraModel(BaseTuner):
             for n, p in self.model.named_parameters():
                 if "lora_" not in n:
                     p.requires_grad = False
+
+            if self.peft_config[active_adapter].fa:
+                for n, p in self.model.named_parameters():
+                    if "lora_A" in n:
+                        p.requires_grad = False
+                        print(f"{n} is freezed.")
+
             if bias == "none":
                 return
             elif bias == "all":
