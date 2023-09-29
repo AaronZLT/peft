@@ -43,6 +43,7 @@ class LoraLayer(BaseTunerLayer):
         self.in_features = in_features
         self.out_features = out_features
         self.kwargs = kwargs
+        self.init_method = kwargs.pop("init_method", "kaiming_uniform_")
 
     def _init_empty_weights(self, cls, *args, **kwargs) -> None:
         # A helper method that allows to initialize the layer of the given class without spending time to initialize the
@@ -139,7 +140,16 @@ class LoraLayer(BaseTunerLayer):
     def reset_lora_parameters(self, adapter_name):
         if adapter_name in self.lora_A.keys():
             # initialize A the same way as the default for nn.Linear and B to zero
-            nn.init.kaiming_uniform_(self.lora_A[adapter_name].weight, a=math.sqrt(5))
+            if self.init_method == "one":
+                torch.nn.init.ones_(self.lora_A[adapter_name].weight)
+            elif self.init_method == "normal_":
+                torch.nn.init.normal_(self.lora_A[adapter_name].weight,mean=0.0,std=1.0)
+            elif self.init_method == "zeros_":
+                torch.nn.init.zeros_(self.lora_A[adapter_name].weight)
+            elif self.init_method == "kaiming_uniform_":
+                nn.init.kaiming_uniform_(self.lora_A[adapter_name].weight, a=math.sqrt(5))
+            else:
+                nn.init.kaiming_uniform_(self.lora_A[adapter_name].weight, a=math.sqrt(5))
             nn.init.zeros_(self.lora_B[adapter_name].weight)
         if adapter_name in self.lora_embedding_A.keys():
             # initialize a the same way as the default for nn.linear and b to zero
@@ -191,7 +201,7 @@ class Linear(nn.Linear, LoraLayer):
         # Note that we don't use self._init_empty_weights() for Linear because it is a bit slower and the benefit of
         # added robustness is not big enough for Linear.
 
-        LoraLayer.__init__(self, in_features=in_features, out_features=out_features)
+        LoraLayer.__init__(self, in_features=in_features, out_features=out_features, **kwargs)
         # Freezing the pre-trained weight matrix
 
         self.fan_in_fan_out = fan_in_fan_out

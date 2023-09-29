@@ -204,9 +204,19 @@ class BaseTuner(nn.Module, ABC):
 
         peft_config = self._prepare_adapter_config(peft_config, model_config)
 
+        total_target_number = 0
+        current_target_number = 0
         for key in key_list:
             if not self._check_target_module_exists(peft_config, key):
                 continue
+            total_target_number = total_target_number + 1
+            
+        for key in key_list:
+            if not self._check_target_module_exists(peft_config, key):
+                continue
+
+            if current_target_number/total_target_number > peft_config.percent:
+                break
 
             is_target_modules_in_base_model = True
             parent, target, target_name = _get_submodules(model, key)
@@ -217,6 +227,7 @@ class BaseTuner(nn.Module, ABC):
                 "current_key": key,
             }
             self._create_and_replace(peft_config, adapter_name, target, target_name, parent, **optional_kwargs)
+            current_target_number = current_target_number + 1
 
         if not is_target_modules_in_base_model:
             raise ValueError(

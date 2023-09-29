@@ -93,6 +93,13 @@ class LoraConfig(PeftConfig):
             ),
         },
     )
+    percent: Optional[float] = field(default=1.0, metadata={"help": "Lora layers percentage from 0-1. Default is 1.0, e.g., 100% lora layers will be applied."})
+    init_method: Optional[str] = field(
+        default="kaiming_uniform_",
+        metadata={
+            "help": "The method to init LoRA_A. Choose from [ones_, normal_, kaiming_uniform_]"
+        },
+    )
     layers_to_transform: Optional[Union[List[int], int]] = field(
         default=None,
         metadata={

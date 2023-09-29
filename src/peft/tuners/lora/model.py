@@ -250,7 +250,6 @@ class LoraModel(BaseTuner):
                 for n, p in self.model.named_parameters():
                     if "lora_A" in n:
                         p.requires_grad = False
-                        print(f"{n} is freezed.")
 
             if bias == "none":
                 return
@@ -336,6 +335,7 @@ class LoraModel(BaseTuner):
                     f"Target module {target} is not supported. Currently, only the following modules are supported: "
                     "`torch.nn.Linear`, `torch.nn.Embedding`, `torch.nn.Conv2d`, `transformers.pytorch_utils.Conv1D`."
                 )
+            kwargs["init_method"] = lora_config.init_method
             new_module = Linear(adapter_name, in_features, out_features, bias=bias, **kwargs)
 
         return new_module
