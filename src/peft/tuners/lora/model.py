@@ -250,7 +250,12 @@ class LoraModel(BaseTuner):
                 for n, p in self.model.named_parameters():
                     if "lora_A" in n:
                         p.requires_grad = False
-
+                        
+            if self.peft_config[active_adapter].fb:
+                for n, p in self.model.named_parameters():
+                    if "lora_B" in n:
+                        p.requires_grad = False
+                        
             if bias == "none":
                 return
             elif bias == "all":
@@ -336,6 +341,8 @@ class LoraModel(BaseTuner):
                     "`torch.nn.Linear`, `torch.nn.Embedding`, `torch.nn.Conv2d`, `transformers.pytorch_utils.Conv1D`."
                 )
             kwargs["init_method"] = lora_config.init_method
+            kwargs["fa"] = lora_config.fa
+            kwargs["fb"] = lora_config.fb
             new_module = Linear(adapter_name, in_features, out_features, bias=bias, **kwargs)
 
         return new_module

@@ -93,6 +93,14 @@ class LoraConfig(PeftConfig):
             ),
         },
     )
+    fb: bool = field(
+        default=False,
+        metadata={
+            "help": (
+                "Whether to freeze B? If B is frozen, then B is init from init_method."
+            ),
+        },
+    )
     percent: Optional[float] = field(default=1.0, metadata={"help": "Lora layers percentage from 0-1. Default is 1.0, e.g., 100% lora layers will be applied."})
     init_method: Optional[str] = field(
         default="kaiming_uniform_",
