@@ -129,6 +129,9 @@ class LoraLayer(BaseTunerLayer):
         if isinstance(init_lora_weights, str) and init_lora_weights.startswith("pissa"):
             with gather_params_ctx(self.get_base_layer().weight):
                 self.pissa_init(adapter_name, init_lora_weights)
+        elif isinstance(init_lora_weights, str) and init_lora_weights.startswith("power"):
+            with gather_params_ctx(self.get_base_layer().weight):
+                self.power_init(adapter_name)
         elif isinstance(init_lora_weights, str) and init_lora_weights.lower() == "olora":
             with gather_params_ctx(self.get_base_layer().weight):
                 self.olora_init(adapter_name)
@@ -247,6 +250,32 @@ class LoraLayer(BaseTunerLayer):
         weight = weight.data - self.scaling[adapter_name] * lora_B @ lora_A
         weight = transpose(weight.to(dtype), self.fan_in_fan_out)
         self.get_base_layer().weight.data = weight
+
+    def power_init(self, adapter_name):
+        weight = self.get_base_layer().weight
+        dtype = weight.dtype
+        if dtype not in [torch.float32, torch.float16, torch.bfloat16]:
+            raise TypeError(
+                "Please initialize power under float32, float16, or bfloat16. "
+                "Subsequently, re-quantize the residual model to help minimize quantization errors."
+            )
+        # num_iter = self.kwargs.get("power_iter", 2)
+        num_iter = 2
+
+        for i in range(num_iter):
+            if i == num_iter - 1:
+                lora_B = torch.linalg.qr(lora_B).Q
+            lora_A = weight @ lora_B
+            if i == num_iter - 1:
+                lora_A = torch.linalg.qr(lora_A).Q
+            lora_B = weight.T @ lora_A
+        
+
+        self.lora_A[adapter_name].weight.data = lora_A
+        self.lora_B[adapter_name].weight.data = lora_B.T
+        # weight = weight.data - self.scaling[adapter_name] * lora_B @ lora_A
+        # weight = transpose(weight.to(dtype), self.fan_in_fan_out)
+        # self.get_base_layer().weight.data = weight
 
     def loftq_init(self, adapter_name):
         from peft.utils.loftq_utils import loftq_init
