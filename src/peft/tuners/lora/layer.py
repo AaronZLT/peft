@@ -208,6 +208,16 @@ class LoraLayer(BaseTunerLayer):
         self.lora_B[adapter_name] = nn.Linear(r, self.out_features, bias=lora_bias)
         self.lora_bias[adapter_name] = lora_bias
 
+        # here we init the sparse adapter
+        # set to 0
+        # no grad
+        self.sparse_A = nn.Linear(self.in_features, r, bias=False)
+        self.sparse_B = nn.Linear(r, self.out_features, bias=False)
+        nn.init.zeros_(self.sparse_A.weight)
+        nn.init.zeros_(self.sparse_B.weight)
+        self.sparse_A.requires_grad_(False)
+        self.sparse_B.requires_grad_(False)
+
         if use_rslora:
             self.scaling[adapter_name] = lora_alpha / math.sqrt(r)
         else:
@@ -615,6 +625,7 @@ class Linear(nn.Module, LoraLayer):
                         delta_weight = self.get_delta_weight(active_adapter)
                         orig_weight += delta_weight.to(orig_dtype)
                     else:
+                        raise ValueError("Sparse LoRA only support vanilla LoRA.")
                         orig_weight = self.lora_variant[active_adapter].merge_safe(self, active_adapter, orig_weight)
 
                     if not torch.isfinite(orig_weight).all():
@@ -689,7 +700,8 @@ class Linear(nn.Module, LoraLayer):
             weight_A = weight_A.float()
             weight_B = weight_B.float()
 
-        output_tensor = transpose(weight_B @ weight_A, self.fan_in_fan_out) * self.scaling[adapter]
+        # output_tensor = transpose(weight_B @ weight_A, self.fan_in_fan_out) * self.scaling[adapter]
+        output_tensor = transpose(weight_B @ weight_A, self.fan_in_fan_out) * self.scaling[adapter] + transpose(self.sparse_B.weight @ self.sparse_A.weight, self.fan_in_fan_out)
 
         if cast_to_fp32:
             output_tensor = output_tensor.to(dtype=dtype)
@@ -727,8 +739,10 @@ class Linear(nn.Module, LoraLayer):
                 scaling = self.scaling[active_adapter]
                 x = self._cast_input_dtype(x, lora_A.weight.dtype)
                 if active_adapter not in self.lora_variant:  # vanilla LoRA
-                    result = result + lora_B(lora_A(dropout(x))) * scaling
+                    # result = result + lora_B(lora_A(dropout(x))) * scaling
+                    result = result + lora_B(lora_A(dropout(x))) * scaling + self.sparse_B(self.sparse_A(x))
                 else:
+                    raise ValueError("Sparse LoRA only support vanilla LoRA.")
                     result = self.lora_variant[active_adapter].forward(
                         self,
                         active_adapter=active_adapter,
